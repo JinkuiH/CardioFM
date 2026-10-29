@@ -133,9 +133,10 @@ embedding extraction.
 released checkpoint carries no CAC-regression head: that pretraining objective's
 parameters live in the objective aggregator, which `scripts/export_weights.py` drops.
 
-Report generation runs through the **pretrained captioning decoder**. The separate
-LoRA-adapted report decoder benchmarked in the paper is not released — its weights were
-not retained after evaluation.
+`generate_report()` runs through the **pretrained T5 captioning decoder** carried in
+`cardiofm_pretrained.pt`, and needs no further download. The LoRA-adapted RadLLaMA report
+decoder benchmarked in the paper is optional, published separately, and governed by the
+Llama 2 Community License — see [MODEL_LICENSE.md](MODEL_LICENSE.md).
 
 ## Hardware
 
@@ -165,5 +166,20 @@ encoder needs roughly 8 GB of GPU memory; on CPU it is slow and may exhaust syst
 
 ## License
 
-[Apache License 2.0](LICENSE). The licence covers this source code. Released model
-weights are provided for research use; see *Limitations* above.
+The source code is under the [Apache License 2.0](LICENSE); third-party
+attributions are in [NOTICE](NOTICE).
+
+Weights are not all under the same licence, so check
+[MODEL_LICENSE.md](MODEL_LICENSE.md) before redistributing any of them:
+
+| Artefact | Licence |
+|---|---|
+| Source code | Apache-2.0 |
+| `cardiofm_pretrained.pt` | Apache-2.0 |
+| Report-generation LoRA adapter | **Llama 2 Community License** |
+
+Everything shown in this README — embeddings, zero-shot classification, retrieval
+and `generate_report()` — uses Apache-2.0 artefacts only. The Llama 2 licence
+applies only if you separately download the optional RadLLaMA LoRA adapter, which
+is a derivative of a Llama 2 model and is published as a separate release asset
+for that reason.

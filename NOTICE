@@ -1,0 +1,51 @@
+CardioFM
+Copyright 2026 Jinkui Hao, Victoria Bajela, Ammar Hoori, David L. Wilson,
+Nilay S. Shah, Bo Zhou
+
+This product includes software developed as part of the CardioFM project,
+licensed under the Apache License, Version 2.0 (see LICENSE).
+
+--------------------------------------------------------------------------------
+Third-party components
+--------------------------------------------------------------------------------
+
+The source code in this repository depends on, and the released model weights
+were derived from, the following third-party work.
+
+1. MONAI (Project MONAI)
+   https://github.com/Project-MONAI/MONAI
+   Apache License 2.0.
+   The image encoder is MONAI's SwinUNETR. The encoder backbone was warm-started
+   from MONAI's self-supervised Swin UNETR weights (Tang et al., CVPR 2022),
+   released at
+   https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/model_swinvit.pt
+
+2. T5 (Google Research) via Hugging Face Transformers
+   https://huggingface.co/t5-small
+   Apache License 2.0.
+   The text tower is initialised from the `t5-small` checkpoint.
+
+3. Hugging Face Transformers
+   https://github.com/huggingface/transformers
+   Apache License 2.0.
+
+4. TotalSegmentator (optional dependency)
+   https://github.com/wasserth/TotalSegmentator
+   Apache License 2.0. Note that the segmentation weights TotalSegmentator
+   downloads carry their own terms, stated by that project.
+
+--------------------------------------------------------------------------------
+Report-generation weights -- NOT covered by Apache License 2.0
+--------------------------------------------------------------------------------
+
+The optional report-generation adapter is a LoRA adapter trained on top of
+StanfordAIMI/RadLLaMA-7b, which is a Llama 2 derivative distributed under the
+Llama 2 Community License. The adapter is therefore itself a Llama 2 derivative
+and is distributed under that licence, not under Apache License 2.0.
+
+    Llama 2 is licensed under the LLAMA 2 Community License,
+    Copyright (c) Meta Platforms, Inc. All Rights Reserved.
+
+Using the adapter requires separately obtaining RadLLaMA-7b and accepting the
+Llama 2 Community License, including its Acceptable Use Policy. See
+MODEL_LICENSE.md for which artefact is governed by which licence.
