@@ -84,12 +84,16 @@ difference is a similarity, **not a calibrated probability**, and should not be 
 
 ## Preprocessing
 
-`preprocess_ct` expects a NIfTI volume and produces `[1, 4, 96, 256, 256]`:
+`preprocess_ct` expects a NIfTI volume and produces `[1, 4, 96, 256, 256]`. The steps run
+in this order, which matters — reorientation and resampling happen *before* the crop, so
+the margin is applied in resampled voxels:
 
-1. heart localisation and crop (TotalSegmentator `heart` mask + margin)
-2. resample to `(1.5, 0.5, 0.5)` mm
-3. crop or pad to `96 × 256 × 256`
-4. four HU windows → four channels, **in this fixed order**:
+1. heart mask from TotalSegmentator (`roi_subset=["heart"]`, `fast=True`)
+2. reorient to **SAR**
+3. resample to `(1.5, 0.5, 0.5)` mm
+4. crop to the heart bounding box + margin `(12, 20, 20)` voxels = `(18, 10, 10)` mm
+5. centre crop or pad to `96 × 256 × 256`
+6. four HU windows → four channels, **in this fixed order**:
 
    | channel | window (level, width) | emphasises |
    |---|---|---|
@@ -98,9 +102,13 @@ difference is a similarity, **not a calibrated probability**, and should not be 
    | 2 | (300, 800) | contrast-filled lumen |
    | 3 | (500, 1500) | wide / dense structures |
 
-If TotalSegmentator is not installed the volume is centre-cropped instead and a warning
-is raised. CardioFM was trained on heart-cropped input, so **embeddings and zero-shot
-scores will not match the published results without it**.
+Steps 2–4 are a MONAI transform chain identical to the one that built the training
+volumes. If TotalSegmentator is unavailable the chain still reorients and resamples but
+skips the heart crop, and a warning is raised — CardioFM was trained on heart-cropped
+input, so **embeddings and zero-shot scores will not reproduce the published results
+without it**.
+
+Pass `ts_cache="dir"` to reuse the heart mask across repeated calls on the same scan.
 
 Already have preprocessed volumes? Pass a tensor directly — any `[B, 4, D, H, W]` input
 whose channels follow the window order above is accepted.
@@ -157,5 +165,5 @@ encoder needs roughly 8 GB of GPU memory; on CPU it is slow and may exhaust syst
 
 ## License
 
-Not yet set. Until a licence file is added, all rights are reserved and no permission to
-use, copy or redistribute is granted.
+[Apache License 2.0](LICENSE). The licence covers this source code. Released model
+weights are provided for research use; see *Limitations* above.
