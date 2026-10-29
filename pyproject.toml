@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cardiofm"
+version = "1.0.0"
+description = "A vision-language foundation model for coronary artery disease from cardiac CT"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0",
+    "monai>=1.3",
+    "transformers>=4.35",
+    "sentencepiece",
+    "nibabel",
+    "scipy",
+    "numpy",
+]
+
+[project.optional-dependencies]
+seg = ["TotalSegmentator"]
+
+[project.urls]
+Repository = "https://github.com/JinkuiH/CardioFM"
+
+[tool.setuptools.packages.find]
+include = ["cardiofm*"]
