@@ -12,12 +12,16 @@ This reproduces the geometry the model was trained on, in this order:
 Steps 2-4 run as a MONAI transform chain, identical to the one used to build the
 training volumes. The order matters: reorientation and resampling happen *before*
 the crop, so the margin is applied in resampled voxels.
+
+The heart crop is required, not optional. CardioFM was trained exclusively on
+heart-cropped volumes, and an uncropped scan puts the model far outside the
+distribution it saw -- the embedding is then not interpretable and the zero-shot
+scores are meaningless. Rather than silently degrade, this module raises.
 """
 from __future__ import annotations
 
 import os
 import tempfile
-import warnings
 from typing import Optional, Sequence, Tuple
 
 import numpy as np
@@ -63,15 +67,21 @@ def crop_or_pad_to_shape(vol: np.ndarray,
     return out
 
 
-def heart_mask(image_path: str, cache_dir: Optional[str] = None) -> Optional[str]:
-    """Run TotalSegmentator and return the path to ``heart.nii.gz``, or ``None``.
+def heart_mask(image_path: str, cache_dir: Optional[str] = None) -> str:
+    """Run TotalSegmentator and return the path to ``heart.nii.gz``.
 
     ``cache_dir`` persists the mask so repeated calls on the same scan are cheap.
+    Raises ``ImportError`` if TotalSegmentator is missing and ``RuntimeError`` if it
+    produces no heart mask.
     """
     try:
         from totalsegmentator.python_api import totalsegmentator
-    except ImportError:
-        return None
+    except ImportError as exc:
+        raise ImportError(
+            "CardioFM requires TotalSegmentator to localise the heart. Install it with "
+            "`pip install TotalSegmentator`. The model was trained exclusively on "
+            "heart-cropped volumes, so this step cannot be skipped."
+        ) from exc
 
     out_dir = cache_dir or tempfile.mkdtemp(prefix="cardiofm_ts_")
     heart = os.path.join(out_dir, "heart.nii.gz")
@@ -80,7 +90,11 @@ def heart_mask(image_path: str, cache_dir: Optional[str] = None) -> Optional[str
     os.makedirs(out_dir, exist_ok=True)
     totalsegmentator(image_path, out_dir, roi_subset=["heart"],
                      fast=True, quiet=True, ml=False)
-    return heart if os.path.exists(heart) else None
+    if not os.path.exists(heart):
+        raise RuntimeError(
+            f"TotalSegmentator produced no heart mask for {image_path}. CardioFM "
+            f"expects a cardiac CT covering the heart; check the field of view.")
+    return heart
 
 
 def _heart_crop_chain(heart_path: str) -> np.ndarray:
@@ -98,38 +112,14 @@ def _heart_crop_chain(heart_path: str) -> np.ndarray:
     ])
 
 
-def _fallback_chain() -> np.ndarray:
-    """Same geometry minus the heart crop, for when TotalSegmentator is unavailable."""
-    from monai.transforms import (Compose, EnsureChannelFirstd, LoadImaged,
-                                  Orientationd, Spacingd)
-    return Compose([
-        LoadImaged(keys=["image"]),
-        EnsureChannelFirstd(keys=["image"]),
-        Orientationd(keys=["image"], axcodes=ORIENTATION),
-        Spacingd(keys=["image"], pixdim=TARGET_SPACING, mode="bilinear"),
-    ])
-
-
-def preprocess_ct(path: str, use_totalsegmentator: bool = True,
-                  ts_cache: Optional[str] = None) -> torch.Tensor:
+def preprocess_ct(path: str, ts_cache: Optional[str] = None) -> torch.Tensor:
     """NIfTI path -> ``[1, 4, 96, 256, 256]`` ready for :meth:`CardioFM.encode_image`.
 
-    Set ``ts_cache`` to a directory to reuse the heart mask across calls.
+    Requires TotalSegmentator; see module docstring. Set ``ts_cache`` to a directory
+    to reuse the heart mask across repeated calls on the same scan.
     """
-    heart = heart_mask(path, ts_cache) if use_totalsegmentator else None
-
-    if heart is None:
-        if use_totalsegmentator:
-            warnings.warn(
-                "TotalSegmentator produced no heart mask (not installed, or segmentation "
-                "failed). Falling back to a centre crop of the reoriented, resampled volume. "
-                "CardioFM was trained on heart-cropped input, so embeddings and zero-shot "
-                "scores will NOT reproduce the published results. Install it with "
-                "`pip install TotalSegmentator`.",
-                RuntimeWarning, stacklevel=2)
-        out = _fallback_chain()({"image": path})
-    else:
-        out = _heart_crop_chain(heart)({"image": path, "heart": heart})
+    heart = heart_mask(path, ts_cache)
+    out = _heart_crop_chain(heart)({"image": path, "heart": heart})
 
     vol = out["image"][0]
     vol = vol.cpu().numpy() if hasattr(vol, "cpu") else np.asarray(vol)

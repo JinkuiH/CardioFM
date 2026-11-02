@@ -16,10 +16,9 @@ dependencies = [
     "nibabel",
     "scipy",
     "numpy",
+    "TotalSegmentator",
 ]
 
-[project.optional-dependencies]
-seg = ["TotalSegmentator"]
 
 [project.urls]
 Repository = "https://github.com/JinkuiH/CardioFM"
