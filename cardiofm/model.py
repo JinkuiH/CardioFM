@@ -4,12 +4,16 @@
     model = CardioFM.from_pretrained()                      # downloads weights once
     emb   = model.encode_image("scan.nii.gz")               # [1, 512]
     out   = model.zero_shot("scan.nii.gz", task="burden", modality="NCCT")
-    text  = model.generate_report("scan.nii.gz")
+    text  = model.generate_report("scan.nii.gz")      # downloads the LoRA decoder once
 
 Only the inference path is included. The published model was pretrained with a
 contrastive objective, report captioning and coronary-guided masked image
 modelling; the released weights carry the image encoder, the pooling taps and the
-text tower, which is everything the calls above need.
+text tower.
+
+``generate_report`` additionally loads the RadLLaMA-7b + LoRA decoder, which is
+**Llama 2 licensed** rather than Apache-2.0 and is downloaded separately on first
+use. Every other call here uses Apache-2.0 artefacts only.
 """
 from __future__ import annotations
 
@@ -22,9 +26,10 @@ import torch.nn.functional as F
 from . import prompts as P
 from .encoder import SwinUNETREncoder
 from .preprocess import preprocess_ct
+from .reportgen import ReportGenerator
 from .taps import AttentionPool3d, TokenProjection
 from .text_tower import ClinicalTextTower
-from .weights import resolve_weights
+from .weights import resolve_report_weights, resolve_weights
 
 ImageLike = Union[str, torch.Tensor]
 
@@ -55,6 +60,7 @@ class CardioFM(torch.nn.Module):
 
         from transformers import AutoTokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+        self._reportgen: Optional[ReportGenerator] = None
         self.eval()
 
     # ------------------------------------------------------------------ loading
@@ -105,8 +111,17 @@ class CardioFM(torch.nn.Module):
         return F.normalize(emb, dim=-1) if normalize else emb
 
     @torch.no_grad()
+    def encoder_tokens(self, image: ImageLike) -> torch.Tensor:
+        """Image -> ``[B, N, 768]`` raw bottleneck tokens.
+
+        This is what the report-generation adapter consumes. Do not confuse it with
+        :meth:`image_tokens`, which projects to ``d_txt`` for the contrastive space.
+        """
+        return self.encoder.encode(self._as_batch(image))["tokens"]
+
+    @torch.no_grad()
     def image_tokens(self, image: ImageLike) -> torch.Tensor:
-        """Image -> ``[B, N, d_txt]`` tokens, the decoder memory for report generation."""
+        """Image -> ``[B, N, d_txt]`` projected tokens (contrastive space)."""
         return self.token_proj(self.encoder.encode(self._as_batch(image))["tokens"])
 
     @torch.no_grad()
@@ -161,14 +176,38 @@ class CardioFM(torch.nn.Module):
         return out
 
     # ------------------------------------------------------------------ generation
+    def load_report_generator(self, weights: Optional[str] = None,
+                              dtype: torch.dtype = torch.bfloat16) -> ReportGenerator:
+        """Load the RadLLaMA + LoRA report decoder (downloaded once, then cached).
+
+        Separate from :meth:`from_pretrained` because this decoder is **Llama 2
+        licensed**, not Apache-2.0, and pulls in a 7B base model. See
+        MODEL_LICENSE.md.
+        """
+        if self._reportgen is None:
+            self._reportgen = ReportGenerator(resolve_report_weights(weights),
+                                              device=str(self.device), dtype=dtype)
+        return self._reportgen
+
     @torch.no_grad()
-    def generate_report(self, image: ImageLike, max_new_tokens: int = 160,
+    def generate_report(self, image: ImageLike, max_new_tokens: int = 256,
                         num_beams: int = 4, **kw) -> str:
-        """Generate a findings narrative from the image, via the pretrained decoder."""
-        ids = self.text_tower.generate(self.image_tokens(image),
-                                       max_new_tokens=max_new_tokens,
-                                       num_beams=num_beams, **kw)
-        return self.tokenizer.decode(ids[0], skip_special_tokens=True)
+        """Generate a findings narrative from the image.
+
+        Uses the RadLLaMA-7b + LoRA decoder, which is downloaded on first call and
+        is **Llama 2 licensed** -- see :meth:`load_report_generator`.
+        """
+        gen = self.load_report_generator()
+        return gen.generate(self.encoder_tokens(image), max_new_tokens=max_new_tokens,
+                            num_beams=num_beams, **kw)[0]
+
+    @torch.no_grad()
+    def generate_reports(self, images: Sequence[ImageLike], max_new_tokens: int = 256,
+                         num_beams: int = 4, **kw) -> List[str]:
+        """Batched :meth:`generate_report`."""
+        gen = self.load_report_generator()
+        toks = torch.cat([self.encoder_tokens(i) for i in images])
+        return gen.generate(toks, max_new_tokens=max_new_tokens, num_beams=num_beams, **kw)
 
     # ------------------------------------------------------------------ retrieval
     @torch.no_grad()

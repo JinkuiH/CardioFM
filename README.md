@@ -46,7 +46,7 @@ print(out["prediction"], out["agatston_bin"])     # 'moderate'  '101-400'
 emb = model.encode_image("scan.nii.gz")           # [1, 512]
 txt = model.encode_text("moderate coronary calcium burden")
 
-# report generation
+# report generation (downloads the Llama-2-licensed decoder on first call)
 print(model.generate_report("scan.nii.gz"))
 
 # retrieval
@@ -159,10 +159,12 @@ prediction, segmentation, supervised probes) reported in the paper. The released
 checkpoint carries no CAC-regression head: that objective's parameters live in the
 objective aggregator, which the export script drops.
 
-`generate_report()` runs the **T5 captioning decoder** inside `cardiofm_pretrained.pt`
-and needs no further download. The LoRA-adapted RadLLaMA decoder benchmarked in the paper
-is optional, published separately, and governed by the Llama 2 Community License — see
-[MODEL_LICENSE.md](MODEL_LICENSE.md).
+`generate_report()` runs the **RadLLaMA-7b + LoRA decoder** from the paper. It is
+downloaded on first call, pulls the 7B base model from the Hugging Face Hub, and is
+governed by the **Llama 2 Community License** rather than Apache-2.0 — see
+[MODEL_LICENSE.md](MODEL_LICENSE.md). Install its extra with
+`pip install "cardiofm[reportgen]"`. Every other entry point in this README uses
+Apache-2.0 artefacts only.
 
 ## Typical problems
 
@@ -173,7 +175,11 @@ is optional, published separately, and governed by the Llama 2 Community License
 probably does not cover the heart. CardioFM expects a cardiac CT.
 
 **Out of memory** — a full-resolution `96 × 256 × 256 × 4` volume needs roughly 8 GB of
-GPU memory. On CPU it is slow and may exhaust system RAM.
+GPU memory. On CPU it is slow and may exhaust system RAM. `generate_report()` additionally
+loads a 7B decoder in bfloat16, which needs roughly 16 GB more.
+
+**`ImportError: peft`** — report generation needs the extra:
+`pip install "cardiofm[reportgen]"`.
 
 **Zero-shot output looks like noise** — check the channel order above, and confirm the
 heart crop ran. Both silently produce garbage if wrong.
@@ -213,10 +219,10 @@ before redistributing any of them:
 | `cardiofm_pretrained.pt` | Apache-2.0 |
 | Report-generation LoRA adapter | **Llama 2 Community License** |
 
-Everything shown in this README uses Apache-2.0 artefacts only. The Llama 2 licence
-applies only if you separately download the optional RadLLaMA LoRA adapter, which is a
-derivative of a Llama 2 model and is published as a separate release asset for that
-reason.
+Everything in this README except `generate_report()` uses Apache-2.0 artefacts only.
+`generate_report()` loads the RadLLaMA LoRA adapter, a derivative of a Llama 2 model,
+published as a separate release asset for that reason; calling it means accepting the
+Llama 2 Community License and its Acceptable Use Policy.
 
 ## References
 

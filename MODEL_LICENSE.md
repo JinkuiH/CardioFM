@@ -47,17 +47,22 @@ Consequences for users:
 - The adapter is published as a **separate** release asset from
   `cardiofm_pretrained.pt`, so that an Apache-2.0 download and a Llama-2 download
   are never bundled together.
-- The adapter is useless on its own. You must obtain RadLLaMA-7b yourself and
-  accept the Llama 2 Community License, including its Acceptable Use Policy.
+- The adapter is useless on its own. The package fetches RadLLaMA-7b from the
+  Hugging Face Hub on first use; doing so means accepting the Llama 2 Community
+  License, including its Acceptable Use Policy.
 - The Llama 2 licence's restrictions, including its commercial-use threshold, flow
   through to the adapter.
 
-The `generate_report()` method in the Python package does **not** use this
-adapter. It runs the T5 captioning decoder carried in `cardiofm_pretrained.pt`,
-which is Apache-2.0 and needs nothing further.
+The `generate_report()` method in the Python package **does** use this adapter.
+Calling it downloads the adapter and the RadLLaMA-7b base model, and means
+accepting the Llama 2 Community License. No other method in the package does.
 
 ## Summary
 
-Using CardioFM for embeddings, zero-shot classification, retrieval or T5-based
-report generation involves Apache-2.0 artefacts only. The Llama 2 licence becomes
-relevant only if you additionally download the RadLLaMA LoRA adapter.
+| Call | Licence it invokes |
+|---|---|
+| `encode_image`, `encode_text`, `zero_shot`, `retrieve`, `encoder_tokens` | Apache-2.0 only |
+| `generate_report`, `generate_reports`, `load_report_generator` | **Llama 2** |
+
+Using CardioFM for embeddings, zero-shot classification or retrieval involves
+Apache-2.0 artefacts only. Report generation does not.

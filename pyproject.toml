@@ -19,6 +19,11 @@ dependencies = [
     "TotalSegmentator",
 ]
 
+[project.optional-dependencies]
+# Report generation only. The decoder is Llama 2 licensed, not Apache-2.0 --
+# see MODEL_LICENSE.md.
+reportgen = ["peft>=0.7", "accelerate"]
+
 
 [project.urls]
 Repository = "https://github.com/JinkuiH/CardioFM"

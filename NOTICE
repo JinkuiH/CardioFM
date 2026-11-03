@@ -46,6 +46,8 @@ and is distributed under that licence, not under Apache License 2.0.
     Llama 2 is licensed under the LLAMA 2 Community License,
     Copyright (c) Meta Platforms, Inc. All Rights Reserved.
 
-Using the adapter requires separately obtaining RadLLaMA-7b and accepting the
-Llama 2 Community License, including its Acceptable Use Policy. See
+The package's report-generation entry points (`generate_report`,
+`generate_reports`, `load_report_generator`) load this adapter and fetch
+RadLLaMA-7b, and therefore require accepting the Llama 2 Community License,
+including its Acceptable Use Policy. No other entry point does. See
 MODEL_LICENSE.md for which artefact is governed by which licence.
