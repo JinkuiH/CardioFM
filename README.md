@@ -2,7 +2,7 @@
 
 A vision–language foundation model for coronary artery disease from cardiac CT.
 
-CardioFM pairs a 3D Swin UNETR image encoder with a clinical text tower in a shared
+CardioFM pairs a 3D image encoder with a clinical text tower in a shared
 512-dimensional embedding space. Give it a cardiac CT — non-contrast calcium CT (NCCT) or
 CT angiography (CCTA) — and it will classify coronary findings **with no task-specific
 training**, retrieve matching reports, generate a findings narrative, or hand you an
