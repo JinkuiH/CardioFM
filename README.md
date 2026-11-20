@@ -28,8 +28,6 @@ Plus cross-modal retrieval, report generation and embedding extraction.
 pip install git+https://github.com/JinkuiH/CardioFM.git
 ```
 
-Python ≥ 3.9 and a CUDA-capable GPU. [TotalSegmentator](https://github.com/wasserth/TotalSegmentator)
-is installed as a dependency and is **required** — see *Preprocessing*.
 
 ## Usage
 
