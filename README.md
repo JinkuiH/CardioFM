@@ -148,51 +148,6 @@ fine-tuning the tower.
 the released inference checkpoint, dropping the optimizer state and the objective
 aggregator.
 
-## What is and is not here
-
-**Included** — image encoder, pooling taps and text tower; preprocessing; the full
-zero-shot prompt bank; inference for classification, retrieval, report generation and
-embedding extraction.
-
-**Not included** — training code, data pipelines, and the downstream task heads (outcome
-prediction, segmentation, supervised probes) reported in the paper. The released
-checkpoint carries no CAC-regression head: that objective's parameters live in the
-objective aggregator, which the export script drops.
-
-`generate_report()` runs the **RadLLaMA-7b + LoRA decoder** from the paper. It is
-downloaded on first call, pulls the 7B base model from the Hugging Face Hub, and is
-governed by the **Llama 2 Community License** rather than Apache-2.0 — see
-[MODEL_LICENSE.md](MODEL_LICENSE.md). Install its extra with
-`pip install "cardiofm[reportgen]"`. Every other entry point in this README uses
-Apache-2.0 artefacts only.
-
-## Typical problems
-
-**`ImportError: CardioFM requires TotalSegmentator`** — install it:
-`pip install TotalSegmentator`. It cannot be skipped; see *The heart crop is required*.
-
-**`RuntimeError: TotalSegmentator produced no heart mask`** — the scan's field of view
-probably does not cover the heart. CardioFM expects a cardiac CT.
-
-**Out of memory** — a full-resolution `96 × 256 × 256 × 4` volume needs roughly 8 GB of
-GPU memory. On CPU it is slow and may exhaust system RAM. `generate_report()` additionally
-loads a 7B decoder in bfloat16, which needs roughly 16 GB more.
-
-**`ImportError: peft`** — report generation needs the extra:
-`pip install "cardiofm[reportgen]"`.
-
-**Zero-shot output looks like noise** — check the channel order above, and confirm the
-heart crop ran. Both silently produce garbage if wrong.
-
-## Limitations
-
-- **Research use only.** Not a medical device; not validated for clinical decisions.
-- Trained on gated cardiac CT cropped to the heart. Behaviour on other fields of view,
-  ungated chest CT or non-cardiac protocols is untested.
-- Generated reports are fluent but numerically unreliable: an Agatston score or CT-FFR
-  value in generated text may be wrong even when the category it implies is right.
-- Zero-shot binary scores are uncalibrated similarity differences; the threshold of 0 is
-  a convention, not a tuned operating point.
 
 ## Citation
 
